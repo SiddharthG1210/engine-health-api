@@ -13,30 +13,70 @@ How many more cycles does this engine have before it fails? → Plan maintenance
 Is this engine behaving abnormally right now? → Catch problems the moment they start, not after failure
 What wear stage is it in? → Give maintenance teams a simple "Healthy / Warning / Critical" signal they can act on immediately
 
-## The end-points -
-The project has three end points ,each solving a distinct problems mentioned- 
+## The three ML capabilities -
+The project is built on three predictions, each solving a distinct problem-
 
-POST /predict-rul
-Takes 30 cycles of sensor readings as input. Feeds it through the trained LSTM neural network. Returns one number — how many cycles this engine has left before failure. This is the core prediction of the whole project.
+**Remaining useful life (`predict_rul`)**
+Takes 30 cycles of sensor readings. Feeds them through the trained LSTM neural network. Returns one number — how many cycles this engine has left before failure. This is the core prediction of the whole project.
 
-POST /anomaly-score
-Takes one cycle of sensor readings. Feeds it through the LSTM Autoencoder — a network trained only on healthy engine data. Returns the reconstruction error and a true/false flag — is this engine behaving abnormally right now? High reconstruction error means the Autoencoder doesn't recognize this pattern as "normal healthy behavior."
+**Anomaly score (`anomaly_score`)**
+Takes one cycle of sensor readings. Feeds it through the Autoencoder — a network trained only on healthy engine data. Returns the reconstruction error and a true/false flag — is this engine behaving abnormally right now? High reconstruction error means the Autoencoder doesn't recognize this pattern as "normal healthy behavior."
 
-POST /degradation-stage
-Takes 30 cycles of sensor readings. Uses the same LSTM as /predict-rul to get the RUL, then applies a simple rule to classify the engine into one of three stages — Healthy (RUL > 100), Warning (RUL between 30-100), Critical (RUL < 30). Returns the stage number, the label, and the predicted RUL.
+**Degradation stage (`degradation_stage`)**
+Takes 30 cycles of sensor readings. Uses the same LSTM as `predict_rul` to get the RUL, then applies a simple rule to classify the engine into one of three stages — Healthy (RUL > 100), Warning (RUL between 30-100), Critical (RUL < 30). Returns the stage number, the label, and the predicted RUL.
 
 My RMSE: 15.77 cycles on official NASA test set. Anomaly detection catch rate: 63.5% on critical engines.
-RUN THE CELLS IN THE COLAB FILE PROVIDED  TO CREATE pkl and pth files and replace them in the main code
+
+## How you reach them
+You don't post raw sensor arrays any more — you **chat**, and an LLM decides which of the three predictions to run and on which engine. Sensor data is read server-side from the database, so nothing a user types becomes model input.
+
+Two kinds of account, and they get different things:
+
+- **Engineers** — all three capabilities, across the whole fleet. `POST /api/chat/engineer`, which returns the reply plus a list of exactly which tools ran on which engines.
+- **Customers** — degradation stage only, and only on the engines assigned to them, answered in plain language with no jargon and no engine numbers. `POST /api/chat/customer`.
+
+Supporting endpoints: `POST /api/auth/login` (form-encoded, returns a JWT), `GET /api/auth/me`, and engineer-only `POST /api/debug/predict-rul` / `/anomaly-score` / `/degradation-stage` for checking a chat answer against the raw prediction.
+
+The old unauthenticated `/predict-rul`, `/anomaly-score` and `/degradation-stage` endpoints are gone on purpose. They let anyone read any engine by number, which would make the access rules above decorative.
 
 ## Tech-stack
-List: PyTorch, FastAPI, scikit-learn, NASA C-MAPSS dataset
+List: PyTorch, FastAPI, SQLAlchemy + SQLite, Google Gemini (`google-genai`), scikit-learn, NASA C-MAPSS dataset
 
 ## How to run it
+
+**1. Install**
+```
 pip install -r requirements.txt
-uvicorn main:app --reload
+```
 
+**2. Add the dataset.** Download the NASA C-MAPSS dataset from https://www.kaggle.com/datasets/behrad3d/nasa-cmaps and place `test_FD001.txt` and `RUL_FD001.txt` in the `data/` folder.
 
+**3. Create a `.env`** in the project root:
+```
+GEMINI_API_KEY=your-google-ai-studio-key
+JWT_SECRET_KEY=any-long-random-string
+JWT_EXPIRE_MINUTES=60
+```
+The server refuses to start without the first two.
 
-## Dataset: NASA C-MAPSS Turbofan Engine Degradation dataset
+**4. Seed the database** — this creates `app.db`, picks the demo engines, and creates the demo accounts:
+```
+python -m app.db.seed
+```
+It prints a table of which engine went to which account. Re-running it is safe (it exits if already seeded); to start over, delete `app.db` and run it again.
+
+**5. Start the server**
+```
+uvicorn app.main:app --reload
+```
+Then open http://127.0.0.1:8000/ for the web UI, or http://127.0.0.1:8000/docs for the API.
+
+Run a **single worker** — chat history is kept in process memory, so multiple workers would give a user a different conversation on each request. History also resets whenever the server restarts; that's by design at this stage.
+
+**Demo accounts** (all password `demo1234`): `engineer@demo.local`, and `customer1@demo.local` through `customer4@demo.local`. `customer4` is the interesting one — it owns two engines in opposite health states.
+
+## Retraining the models
+The API loads four artifacts from `ml_artifacts/`: `rul_model.pth`, `autoencoder_model.pth`, `anomaly_threshold.pkl`, and `scaler.pkl`. They're produced by `training.ipynb` — run that notebook top to bottom (it needs `train_FD001.txt` as well) and replace the four files.
+
+Dataset: NASA C-MAPSS Turbofan Engine Degradation dataset
 Download from: https://www.kaggle.com/datasets/behrad3d/nasa-cmaps
-Place the txt files in the project folder before running
