@@ -8,7 +8,12 @@ python-multipart
 torch
 numpy
 pandas
-scikit-learn
+# Pinned to the version scaler.pkl was fit and pickled with. The scaler is
+# loaded as-is and never refit, so it is the one object deciding what numbers
+# reach the models -- if MinMaxScaler's internals change under it, every
+# prediction shifts silently, with a warning rather than an error. Re-fitting
+# under a newer version would need train_FD001.txt, which is not in the repo.
+scikit-learn==1.6.1
 joblib
 
 # Storage
