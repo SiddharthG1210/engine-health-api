@@ -39,6 +39,10 @@ Supporting endpoints: `POST /api/auth/login` (form-encoded, returns a JWT), `GET
 
 The old unauthenticated `/predict-rul`, `/anomaly-score` and `/degradation-stage` endpoints are gone on purpose. They let anyone read any engine by number, which would make the access rules above decorative.
 
+### The version before this one
+
+The original non-agentic build — a single `main.py` exposing those three endpoints directly, no auth, no chat — is kept on the [`v1-non-agentic`](../../tree/v1-non-agentic) branch rather than deleted. Same two models, same weights; the whole difference is what sits in front of them.
+
 ## Tech-stack
 List: PyTorch, FastAPI, SQLAlchemy + SQLite, Google Gemini (`google-genai`), scikit-learn, NASA C-MAPSS dataset
 
