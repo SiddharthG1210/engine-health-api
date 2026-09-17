@@ -3,3 +3,9 @@ __pycache__/
 .env
 *.pkl
 *.pth
+
+# SQLite database, recreated by `python -m app.db.seed`
+*.db
+
+# NASA C-MAPSS data files -- user-supplied, see plan.md Task 2
+data/

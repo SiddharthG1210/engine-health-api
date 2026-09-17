@@ -1,0 +1,26 @@
+# Web framework
+fastapi
+uvicorn
+pydantic
+python-multipart
+
+# ML serving
+torch
+numpy
+pandas
+scikit-learn
+joblib
+
+# Storage
+sqlalchemy
+
+# Auth
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt<4.1  # passlib 1.7.4 (unmaintained) breaks against bcrypt>=4.1 -- pin below that
+
+# LLM agents
+google-genai
+
+# Config
+python-dotenv
