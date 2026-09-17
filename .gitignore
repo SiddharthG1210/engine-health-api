@@ -9,3 +9,8 @@ __pycache__/
 
 # NASA C-MAPSS data files -- user-supplied, see plan.md Task 2
 data/
+
+# ...except the trained artifacts, which app/ml/inference.py loads at
+# startup. Outputs of training.ipynb, not generated at runtime.
+!ml_artifacts/*.pth
+!ml_artifacts/*.pkl
