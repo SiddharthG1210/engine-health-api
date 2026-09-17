@@ -72,5 +72,5 @@ There is no test suite, linter, or CI config in this repo.
 - **Chat history is in memory** (`app/agents/session_store.py`) and resets on restart. That is deliberate at this stage — and it is why the server must run with a **single worker**.
 - **Free-tier Gemini limits are real**: roughly 5–7 chat messages per minute (`gemini-3.5-flash-lite`, 15 requests/min, and one turn costs at least two calls). Hitting it shows "The assistant is busy" — that's the limit working, not a broken route. See log.md, Task 5, for measured numbers; the published docs were wrong.
 - `scikit-learn` is unpinned in `requirements.txt` while `scaler.pkl` was pickled with 1.6.1 — this already emits an `InconsistentVersionWarning` at startup. Worth pinning before it silently changes scaling.
-- `User.created_at` writes an aware datetime into a naive `DateTime` column, so subtracting it from `datetime.now(timezone.utc)` raises `TypeError`.
+- `User.created_at` is naive UTC by design — SQLite cannot hold a timezone on a `DateTime` column, so the default factory strips it rather than let an aware value round-trip into a naive one. Compare against `datetime.now(timezone.utc).replace(tzinfo=None)`, never a bare `datetime.now()`. (Was a `TypeError` waiting to happen; fixed.)
 - A blank `JWT_EXPIRE_MINUTES=` in `.env` makes `int("")` raise at import, bypassing the documented default of 60.

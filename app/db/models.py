@@ -24,8 +24,24 @@ class User(Base):
     # Plain string, not a DB enum -- adding a role (e.g. "technician") later
     # is then just a change to app.roles.ROLE_TOOL_MAP, no migration needed.
     role: Mapped[str] = mapped_column(String, nullable=False)
+    # Stored as UTC but *without* a tzinfo label, deliberately.
+    #
+    # SQLite has no real date type -- it keeps datetimes as text, and a plain
+    # DateTime column has nowhere to put a timezone. Writing a labelled
+    # ("aware") value here would therefore still read back unlabelled
+    # ("naive"), and `datetime.now(timezone.utc) - user.created_at` would raise
+    # TypeError, since Python refuses to subtract a naive datetime from an
+    # aware one rather than guess how far apart they are.
+    #
+    # Stripping the label on the way in makes both ends naive, so that
+    # subtraction works. The value is still UTC -- anything comparing against
+    # it must be UTC too (`datetime.now(timezone.utc).replace(tzinfo=None)`),
+    # never a bare `datetime.now()`, which is local time.
+    #
+    # DateTime(timezone=True) is NOT the fix: SQLAlchemy's SQLite dialect drops
+    # the offset regardless. It would only start holding on Postgres.
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
 
 
