@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<!--
+  Engine Health API -- single-page frontend.
+
+  Two views live in this one file and are toggled by app.js flipping the
+  `hidden` attribute: `#login-view` and `#chat-view`. There is no router, no
+  framework and no build step -- the whole UI is three static files served by
+  `app/main.py` (`GET /` returns this file, `/static/*` serves the other two).
+
+  Why a single page rather than two HTML files: the token lives in
+  localStorage, so "am I logged in?" is a question only JavaScript can answer.
+  With two pages, every load of the chat page would flash unauthenticated
+  markup before the redirect. Here the page starts with *both* views hidden and
+  app.js reveals exactly one once it knows the answer.
+
+  The markup is deliberately plain: semantic elements, ids that app.js looks
+  up once at startup, and no inline event handlers (all listeners are attached
+  in app.js, so there is exactly one place to look for behaviour).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Engine Health</title>
+  <!-- Served from the /static mount, not from "/" -- see app/main.py's note
+       about a root mount shadowing the /api routes. -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!--
+    ==========================================================================
+    LOGIN VIEW
+    ==========================================================================
+    A real <form> rather than a button with a click handler, so that Enter in
+    either field submits and the browser's own "required" validation runs
+    before any request is made. app.js calls preventDefault() and posts it
+    itself -- form-encoded, which is what OAuth2PasswordRequestForm on
+    /api/auth/login parses. Posting JSON there returns 422.
+  -->
+  <section id="login-view" class="view" hidden>
+    <div class="login-card">
+      <h1>Engine Health</h1>
+      <p class="subtitle">Predictive maintenance for turbofan engines</p>
+
+      <form id="login-form" autocomplete="on">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required
+               autocomplete="username" placeholder="engineer@demo.local">
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required
+               autocomplete="current-password" placeholder="••••••••">
+
+        <button id="login-button" type="submit">Sign in</button>
+      </form>
+
+      <!-- Filled in by app.js on a failed login; kept in the DOM (rather than
+           created on demand) so its space is reserved and the card does not
+           jump when an error appears. -->
+      <p id="login-error" class="error" hidden></p>
+
+      <details class="demo-accounts">
+        <summary>Demo accounts</summary>
+        <p>All use the password <code>demo1234</code>.</p>
+        <ul>
+          <li><code>engineer@demo.local</code> — full fleet, all three tools</li>
+          <li><code>customer1@demo.local</code> — one engine, plain language</li>
+          <li><code>customer4@demo.local</code> — owns two engines</li>
+        </ul>
+      </details>
+    </div>
+  </section>
+
+  <!--
+    ==========================================================================
+    CHAT VIEW
+    ==========================================================================
+  -->
+  <section id="chat-view" class="view" hidden>
+    <header class="chat-header">
+      <div class="identity">
+        <span id="user-email" class="user-email"></span>
+        <!-- The role badge is not decoration: it is the visible confirmation
+             that the frontend is talking to the endpoint it thinks it is.
+             app.js sets both this and the target URL from the same value
+             returned by /api/auth/me. -->
+        <span id="user-role" class="role-badge"></span>
+      </div>
+      <button id="logout-button" type="button" class="secondary">Log out</button>
+    </header>
+
+    <!-- The scrolling transcript. Every bubble is appended here by app.js. -->
+    <main id="messages" class="messages" aria-live="polite"></main>
+
+    <form id="chat-form" class="composer">
+      <input id="chat-input" type="text" autocomplete="off"
+             placeholder="Ask about an engine…" required>
+      <button id="send-button" type="submit">Send</button>
+    </form>
+
+    <!--
+      A standing footnote rather than something shown only when it happens.
+      The free Gemini tier sustains roughly 5-7 chat messages per minute, and
+      one turn costs at least two model calls. Over that, the server answers
+      "The assistant is busy, try again in a few seconds" as a normal reply.
+      That is the rate limit working correctly, not a broken UI -- saying so
+      up front stops it being mistaken for a bug.
+    -->
+    <p class="rate-note">
+      Free-tier limit: about 5–7 messages a minute. Past that you'll be told the
+      assistant is busy — wait a few seconds and ask again.
+    </p>
+  </section>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
